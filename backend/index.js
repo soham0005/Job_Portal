@@ -8,6 +8,8 @@ const {connectDB} = require("./connection");
 const cookieParser = require("cookie-parser");
 const authRoute = require("./routes/authRoutes");
 const userRoute = require("./routes/userRoutes");
+const jobTypeRoute = require("./routes/jobTypeRoutes");
+const jobRoute = require("./routes/jobRoutes");
 
 
 
@@ -29,7 +31,8 @@ app.use(cors());
 
 app.use('/api',authRoute);
 app.use('/api',userRoute);
-
+app.use('/api',jobTypeRoute);
+app.use('/api',jobRoute);
 
 
 

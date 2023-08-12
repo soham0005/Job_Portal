@@ -1,115 +1,79 @@
 const User = require("../models/userModel");
 
-const register = async(req,res) =>{
-    const {email} = req.body;
-    const user = await User.findOne({email});
-
-    if(user){
-
-       return res.status(400).json({message:"Please Use Unique Email/User with Email Already Exists"});
+exports.signup = async (req, res, next) => {
+    const { email } = req.body;
+    const userExist = await User.findOne({ email });
+    if (userExist) {
+        return next(new ErrorResponse("E-mail already registred", 400));
     }
     try {
-        const newUser = await User.create(req.body);
-        console.log(newUser);
-        return res.status(200).json({message:"User Created Successfully"});
+        const user = await User.create(req.body);
+        res.status(201).json({
+            success: true,
+            user
+        })
     } catch (error) {
-
-       return res.status(400).json({message:error.message});
+        next(error);
     }
 }
 
 
-const login = async(req,res) =>{
-    const {email,password} = req.body; 
-    const user = await User.findOne({email});
+exports.signin = async (req, res, next) => {
 
-    if (!user){
-        return res.status(200).json({message:"User not Found"});
+    try {
+        const { email, password } = req.body;
+        //validation
+        if (!email) {
+            return next(new ErrorResponse("please add an email", 403));
+        }
+        if (!password) {
+            return next(new ErrorResponse("please add a password", 403));
+        }
+
+        //check user email
+        const user = await User.findOne({ email });
+        if (!user) {
+            return next(new ErrorResponse("invalid credentials", 400));
+        }
+        //check password
+        const isMatched = await user.comparePassword(password);
+        if (!isMatched) {
+            return next(new ErrorResponse("invalid credentials", 400));
+        }
+
+        sendTokenResponse(user, 200, res);
+
+    } catch (error) {
+        next(error);
     }
-
-    const validPassword = await user.comparePassword(password);
-
-    if(!validPassword){
-        return res.status(400).json({message:"Invalid Credentails"});
-    }
-
-    sendToken(user,200,res);
-    // return res.status(200).json({message:"Login Success"});
 }
 
-const sendToken = async(user,codeStatus,res) =>{
+const sendTokenResponse = async (user, codeStatus, res) => {
     const token = await user.getJwtToken();
-    console.log("user:",user);
     res
-    .status(codeStatus)
-    .cookie('token',token,{maxAge: 60*60*1000, httpOnly:true})
-    .json({success:true,token,user})
-
+        .status(codeStatus)
+        .cookie('token', token, { maxAge: 60 * 60 * 1000, httpOnly: true })
+        .json({ success: true, token, user })
 }
 
-const logout = (req,res,next)=>{
+
+// log out
+exports.logout = (req, res, next) => {
     res.clearCookie('token');
-    return res.status(200).json({status:true,message:"Logout Success"});
-}
-
-const userProfile = async(req,res,next) =>{
-    const user = await User.findById(req.user.id).select('-password');
     res.status(200).json({
-        success:true,
-        user
+        success: true,
+        message: "logged out"
     })
 }
 
 
-// SIngle User
+// user profile
+exports.userProfile = async (req, res, next) => {
 
-const singleUser = async(req,res) =>{
-    try {
-        const user = await User.findById(req.params.id);
-        if (!user){
-        return res.status(400).json({success:false,message:"User Not Found with the Provided ID"});
-        }
-        return res.status(200).json({
-            success:true,
-            user
-        })
-    } catch (error) {
-        return res.status(400).json({success:false,message:error.message});
-    }
-}
+    const user = await User.findById(req.user.id).select('-password');
 
-
-const updateUser = async(req,res)=>{
-    try {
-        const user = await User.findByIdAndUpdate(req.params.id,req.body,{new:true});
-        return res.status(200).json({
-            success:true,
-            user
-        })
-
-    } catch (error) {
-        return res.status(400).json({success:false,message:error.message});
-    }
-}
-
-const deleteUser = async(req,res)=>{
-    try {
-        const user = await User.findByIdAndDelete(req.params.id);
-        if(!user){
-            return res.status(400).json({success:true,message:"User Not Found"});
-
-        }
-        return res.status(200).json({success:true,message:"User Deleted Successfully"});
-
-    } catch (error) {
-        return res.status(400).json({success:false,message:error.message});
-    }
-}
-
-
-
-
-
-module.exports ={
-    register,login,logout,userProfile,singleUser,updateUser,deleteUser
+    res.status(200).json({
+        success: true,
+        user
+    })
 }
